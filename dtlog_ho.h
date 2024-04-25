@@ -23,8 +23,10 @@
 #include <sstream>
 #include <iomanip>
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#endif // WIN32_LEAN_AND_MEAN
 
 #if _HAS_NODISCARD
 #define DTLOG_NODISCARD [[nodiscard]]								// nodiscard attribute define

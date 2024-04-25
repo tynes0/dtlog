@@ -14,8 +14,10 @@
 
 #include "dtlog.h"
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#endif // WIN32_LEAN_AND_MEAN
 
 void dtlog::logger::set_stdout_color(log_level level)
 {
