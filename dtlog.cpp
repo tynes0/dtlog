@@ -1,4 +1,18 @@
-﻿#include "dtlog.h"
+﻿/*
+ * This file is part of the dtlog library, originally created by Tynes0.
+ * For the latest version and updates, please visit the official dtlog GitHub repository:
+ * https://github.com/tynes0/dtlog
+ *
+ * dtlog is a basic library for logging, providing fast and user-friendly use
+ * It is released under the Apache License 2.0. See the LICENSE file in the root of the dtlog repository
+ * or visit the above GitHub link for more details.
+ *
+ * For contributions, bug reports, or other inquiries, feel free to contact the author:
+ * - GitHub: https://github.com/tynes0
+ * - Email: cihanbilgihan@gmail.com
+ */
+
+#include "dtlog.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
