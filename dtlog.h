@@ -259,27 +259,27 @@ namespace dtlog
 			m_timeptr = std::localtime(&t);
 		}
 
-		std::string full_weekday_name() const
+		DTLOG_NODISCARD std::string full_weekday_name() const
 		{
 			return weekdays(m_timeptr->tm_wday);
 		}
 
-		std::string full_month_name() const
+		DTLOG_NODISCARD std::string full_month_name() const
 		{
 			return months(m_timeptr->tm_mon);
 		}
 
-		std::string year_2_digits() const
+		DTLOG_NODISCARD std::string year_2_digits() const
 		{
 			return std::to_string(m_timeptr->tm_year % 100);
 		}
 
-		std::string year_4_digits() const
+		DTLOG_NODISCARD std::string year_4_digits() const
 		{
 			return std::to_string(m_timeptr->tm_year + 1900);
 		}
 
-		std::string date_time_representation() const
+		DTLOG_NODISCARD std::string date_time_representation() const
 		{
 			std::ostringstream oss;
 			oss << weekdays(m_timeptr->tm_wday)
@@ -298,7 +298,7 @@ namespace dtlog
 			return oss.str();
 		}
 
-		std::string short_MMDDYY_date() const
+		DTLOG_NODISCARD std::string short_MMDDYY_date() const
 		{
 			std::ostringstream oss;
 			oss << format_time(m_timeptr->tm_mon + 1)
@@ -309,22 +309,22 @@ namespace dtlog
 			return oss.str();
 		}
 
-		std::string month() const
+		DTLOG_NODISCARD std::string month() const
 		{
 			return std::to_string(m_timeptr->tm_mon + 1);
 		}
 
-		std::string day_of_month() const
+		DTLOG_NODISCARD std::string day_of_month() const
 		{
 			return std::to_string(m_timeptr->tm_mday);
 		}
 
-		std::string hours_24_format() const
+		DTLOG_NODISCARD std::string hours_24_format() const
 		{
 			return std::to_string(m_timeptr->tm_hour);
 		}
 
-		std::string hours_12_format() const
+		DTLOG_NODISCARD std::string hours_12_format() const
 		{
 			int hours12 = m_timeptr->tm_hour % 12;
 			if (hours12 == 0)
@@ -332,22 +332,22 @@ namespace dtlog
 			return std::to_string(hours12);
 		}
 
-		std::string minutes() const
+		DTLOG_NODISCARD std::string minutes() const
 		{
 			return std::to_string(m_timeptr->tm_min);
 		}
 
-		std::string seconds() const
+		DTLOG_NODISCARD std::string seconds() const
 		{
 			return std::to_string(m_timeptr->tm_sec);
 		}
 
-		std::string AM_PM() const
+		DTLOG_NODISCARD std::string AM_PM() const
 		{
 			return (m_timeptr->tm_hour < 12) ? "AM" : "PM";
 		}
 
-		std::string clock_12_hour() const
+		DTLOG_NODISCARD std::string clock_12_hour() const
 		{
 			std::ostringstream oss;
 			oss << format_time((m_timeptr->tm_hour % 12 == 0) ? 12 : m_timeptr->tm_hour % 12)
@@ -359,7 +359,7 @@ namespace dtlog
 			return oss.str();
 		}
 
-		std::string HHMM_time_24_hour() const
+		DTLOG_NODISCARD std::string HHMM_time_24_hour() const
 		{
 			std::ostringstream oss;
 			oss << format_time(m_timeptr->tm_hour)
@@ -368,7 +368,7 @@ namespace dtlog
 			return oss.str();
 		}
 
-		std::string ISO8601_time_format() const
+		DTLOG_NODISCARD std::string ISO8601_time_format() const
 		{
 			std::ostringstream oss;
 			oss << format_time(m_timeptr->tm_hour)
@@ -380,7 +380,7 @@ namespace dtlog
 		}
 
 	private:
-		std::string format_time(int time_value) const
+		DTLOG_NODISCARD std::string format_time(int time_value) const
 		{
 			std::ostringstream oss;
 			oss << std::setw(2)
@@ -389,7 +389,7 @@ namespace dtlog
 			return oss.str();
 		}
 
-		std::string weekdays(int wday) const
+		DTLOG_NODISCARD std::string weekdays(int wday) const
 		{
 			switch (wday)
 			{
@@ -404,7 +404,7 @@ namespace dtlog
 			}
 		}
 
-		std::string months(int mon) const
+		DTLOG_NODISCARD std::string months(int mon) const
 		{
 			switch (mon)
 			{
@@ -439,7 +439,7 @@ namespace dtlog
 		critical
 	};
 
-	inline std::string log_level_to_string(log_level level)
+	DTLOG_NODISCARD inline std::string log_level_to_string(log_level level)
 	{
 		switch (level)
 		{
@@ -504,7 +504,7 @@ namespace dtlog
 			log_name = name;
 		}
 
-		std::string get_name() const
+		DTLOG_NODISCARD std::string get_name() const
 		{
 			return log_name;
 		}
@@ -514,7 +514,7 @@ namespace dtlog
 			log_pattern = format;
 		}
 
-		std::string get_pattern() const
+		DTLOG_NODISCARD std::string get_pattern() const
 		{
 			return log_pattern;
 		}
