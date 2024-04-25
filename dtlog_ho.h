@@ -13,17 +13,15 @@
  * - GitHub: https://github.com/tynes0
  * - Email: cihanbilgihan@gmail.com
  */
-
 #pragma once
+
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif // _CRT_SECURE_NO_WARNINGS
+
 #include <string>
-#include <ctime>
-#include <cstdio>
-#include <stdexcept>
 #include <sstream>
 #include <iomanip>
-
-#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
 #if _HAS_NODISCARD
@@ -161,7 +159,7 @@ namespace dtlog
 		template <typename... Args>
 		std::string operator()(const std::string& fmt, Args&&... args)
 		{
-			return format(fmt, args...);
+			return format(fmt, std::forward<Args>(args)...);
 		}
 
 	private:
@@ -169,7 +167,7 @@ namespace dtlog
 		{
 			argument_base() {}
 			virtual ~argument_base() {}
-			virtual void format(std::ostringstream&, const std::string&) {}
+			virtual void format(std::ostringstream&) {}
 		};
 
 		template <class _Ty>
@@ -180,7 +178,7 @@ namespace dtlog
 
 			virtual ~argument() override {}
 
-			virtual void format(std::ostringstream& oss, const std::string& fmt)
+			virtual void format(std::ostringstream& oss) override
 			{
 				oss << m_argument;
 			}
@@ -205,8 +203,6 @@ namespace dtlog
 		static void format_item(std::ostringstream& oss, const std::string& item, const argument_array& arguments)
 		{
 			size_t index = 0;
-			long long alignment = 0;
-			std::string fmt;
 			char* endptr = nullptr;
 #if _WIN64
 			index = std::strtoull(&item[0], &endptr, 10);
@@ -216,20 +212,7 @@ namespace dtlog
 
 			if (index < 0 || index >= arguments.size())
 				return;
-
-			if (*endptr == ',')
-			{
-				alignment = strtoll(endptr + 1, &endptr, 10);
-				if (alignment > 0)
-					oss << std::right << std::setw(alignment);
-				else if (alignment < 0)
-					oss << std::left << std::setw(-alignment);
-			}
-
-			if (*endptr == ':')
-				fmt = endptr + 1;
-
-			arguments[index]->format(oss, fmt);
+			arguments[index]->format(oss);
 		}
 
 		static void transfer_to_array(argument_array& arg_array) {}
@@ -258,11 +241,14 @@ namespace dtlog
 
 		explicit date_time_formatter(const std::tm* timeptr) : m_timeptr(timeptr) {}
 
+#pragma warning(push)
+#pragma warning(disable : 4996)
 		void reset_time()
 		{
 			std::time_t t = std::time(nullptr);
 			m_timeptr = std::localtime(&t);
 		}
+#pragma warning(pop)
 
 		DTLOG_NODISCARD std::string full_weekday_name() const
 		{
@@ -293,13 +279,13 @@ namespace dtlog
 				<< " "
 				<< m_timeptr->tm_mday
 				<< " "
+				<< m_timeptr->tm_year + 1900
+				<< " "
 				<< format_time(m_timeptr->tm_hour)
 				<< ":"
 				<< format_time(m_timeptr->tm_min)
 				<< ":"
-				<< format_time(m_timeptr->tm_sec)
-				<< " "
-				<< m_timeptr->tm_year + 1900;
+				<< format_time(m_timeptr->tm_sec);
 			return oss.str();
 		}
 
@@ -469,7 +455,7 @@ namespace dtlog
 	class logger
 	{
 	public:
-		logger(const std::string& log_name = "dtlog", const std::string& pattern = "[%T] %N: %V") : log_name(log_name), log_pattern(pattern) {}
+		logger(const std::string& log_name = "dtlog", const std::string& pattern = "[%R] %N: %V") : log_name(log_name), log_pattern(pattern) {}
 
 		template <class ..._Args>
 		void log(log_level level, const std::string& message, _Args&&... args)
@@ -481,6 +467,18 @@ namespace dtlog
 			std::fwrite(log_message.c_str(), sizeof(char), log_message.length(), stdout);
 			std::fflush(stdout);
 			set_stdout_color(log_level::none);
+		}
+
+		template <class ..._Args>
+		void log_stderr(log_level level, const std::string& message, _Args&&... args)
+		{
+			std::string formatted_message = formatter::format(message, std::forward<_Args>(args)...);
+			std::string log_message;
+			pattern(level, formatted_message, log_message);
+			set_stderr_color(level);
+			std::fwrite(log_message.c_str(), sizeof(char), log_message.length(), stderr);
+			std::fflush(stderr);
+			set_stderr_color(log_level::none);
 		}
 
 		template <class ..._Args>
@@ -673,6 +671,40 @@ namespace dtlog
 			}
 
 			HANDLE console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (console_handle == INVALID_HANDLE_VALUE)
+				throw std::invalid_argument("INVALID STD HANDLE (logger::set_stdout_color())");
+			SetConsoleTextAttribute(console_handle, color_code);
+		}
+
+		void set_stderr_color(log_level level)
+		{
+			WORD color_code = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+
+			switch (level)
+			{
+			case log_level::none:
+			case log_level::trace:
+				break;
+			case log_level::info:
+				color_code = FOREGROUND_GREEN;
+				break;
+			case log_level::debug:
+				color_code = FOREGROUND_BLUE;
+				break;
+			case log_level::warning:
+				color_code = FOREGROUND_RED | FOREGROUND_GREEN;
+				break;
+			case log_level::error:
+				color_code = FOREGROUND_RED;
+				break;
+			case log_level::critical:
+				color_code = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | FOREGROUND_RED;
+				break;
+			default:
+				break;
+			}
+
+			HANDLE console_handle = GetStdHandle(STD_ERROR_HANDLE);
 			if (console_handle == INVALID_HANDLE_VALUE)
 				throw std::invalid_argument("INVALID STD HANDLE (logger::set_stdout_color())");
 			SetConsoleTextAttribute(console_handle, color_code);
