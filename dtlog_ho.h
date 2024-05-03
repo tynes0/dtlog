@@ -645,7 +645,7 @@ namespace dtlog
 				}
 			}
 		}
-
+#ifdef _WIN32
 		void set_stdout_color(log_level level)
 		{
 			WORD color_code = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
@@ -713,6 +713,70 @@ namespace dtlog
 				throw std::invalid_argument("INVALID STD HANDLE (logger::set_stdout_color())");
 			SetConsoleTextAttribute(console_handle, color_code);
 		}
+#else _WIN32
+		void set_stdout_color(log_level level)
+		{
+			const char* color_code = "\x1b[0m";
+
+			switch (level)
+			{
+			case log_level::none:
+			case log_level::trace:
+				break;
+			case log_level::info:
+				color_code = "\x1b[32m";
+				break;
+			case log_level::debug:
+				color_code = "\x1b[34m";
+				break;
+			case log_level::warning:
+				color_code = "\x1b[33m";
+				break;
+			case log_level::error:
+				color_code = "\x1b[31m";
+				break;
+			case log_level::critical:
+				color_code = "\x1b[91m";
+				break;
+			default:
+				break;
+			}
+
+			fwrite(color_code, sizeof(char), strlen(color_code), stdout);
+		}
+
+		void set_stderr_color(log_level level)
+		{
+			const char* color_code = "\x1b[0m";
+
+			switch (level)
+			{
+			case log_level::none:
+			case log_level::trace:
+				break;
+			case log_level::info:
+				color_code = "\x1b[32m";
+				break;
+			case log_level::debug:
+				color_code = "\x1b[34m";
+				break;
+			case log_level::warning:
+				color_code = "\x1b[33m";
+				break;
+			case log_level::error:
+				color_code = "\x1b[31m";
+				break;
+			case log_level::critical:
+				color_code = "\x1b[91m";
+				break;
+			default:
+				break;
+			}
+
+			fwrite(color_code, sizeof(char), strlen(color_code), stderr);
+		} 
+#endif // _WIN32
+
 	private:
 		std::string log_name;
 		std::string log_pattern;
