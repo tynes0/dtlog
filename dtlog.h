@@ -779,7 +779,6 @@ namespace dtlog
         /**
         * @brief Logs a trace message to the given file stream.
         * @tparam _Args Variadic template for message arguments.
-        * @param file The file stream to log to.
         * @param message The log message.
         * @param args Additional arguments for formatting the message.
         */
@@ -792,7 +791,6 @@ namespace dtlog
         /**
         * @brief Logs a info message to the given file stream.
         * @tparam _Args Variadic template for message arguments.
-        * @param file The file stream to log to.
         * @param message The log message.
         * @param args Additional arguments for formatting the message.
         */
@@ -805,7 +803,6 @@ namespace dtlog
         /**
         * @brief Logs a debug message to the given file stream.
         * @tparam _Args Variadic template for message arguments.
-        * @param file The file stream to log to.
         * @param message The log message.
         * @param args Additional arguments for formatting the message.
         */
@@ -818,7 +815,6 @@ namespace dtlog
         /**
         * @brief Logs a warning message to the given file stream.
         * @tparam _Args Variadic template for message arguments.
-        * @param file The file stream to log to.
         * @param message The log message.
         * @param args Additional arguments for formatting the message.
         */
@@ -831,7 +827,6 @@ namespace dtlog
         /**
         * @brief Logs a error message to the given file stream.
         * @tparam _Args Variadic template for message arguments.
-        * @param file The file stream to log to.
         * @param message The log message.
         * @param args Additional arguments for formatting the message.
         */
@@ -844,7 +839,6 @@ namespace dtlog
         /**
         * @brief Logs a critical message to the given file stream.
         * @tparam _Args Variadic template for message arguments.
-        * @param file The file stream to log to.
         * @param message The log message.
         * @param args Additional arguments for formatting the message.
         */
