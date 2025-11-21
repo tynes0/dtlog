@@ -51,15 +51,58 @@ int main() {
 
 ## Advanced Usage
 
-### Logging to Files (Log Rotation)
+### 1. Powerful Formatting
+dtlog supports positional arguments and printf-like format specifiers within {} placeholders.
 
-You can attach multiple "sinks" to a logger. The `rotating_file_sink` is perfect for production environments as it manages file sizes automatically to prevent disk overflow.
+```cpp
+// Automatic Indexing
+log.info("Coordinates: {}, {}", 10, 20); 
+// Output: Coordinates: 10, 20
 
+// Positional Indexing
+log.info("{1} {0}!", "World", "Hello"); 
+// Output: Hello World!
+
+// Format Specifiers
+log.info("Pi: {:.2f}", 3.14159);      // Precision: 3.14
+log.info("Hex: 0x{:04X}", 255);       // Hex with width: 0x00FF
+log.info("Filled: {:0>5}", 42);       // Zero fill: 00042
+```
+
+### 2. Templated Logger (Direct Sink Initialization)
+You can define the default sink type via templates, allowing you to pass arguments directly to the sink's constructor.
+
+```cpp
+// Create a logger that writes directly to a file
+// Arguments are forwarded to file_sink constructor
+dtlog::logger<dtlog::file_sink> fileLog("FileLogger", "[%T] %V", "logs/app.log");
+
+fileLog.info("This writes directly to the file.");
+```
+
+
+### 3. Rotating File Sink (with Directory Creation)
+
+The rotating_file_sink manages file sizes and creates the directory path automatically if it doesn't exist.
 ```cpp
 #include "dtlog.h"
 
 int main() {
-    dtlog::logger log("Server");
+    // Create a rotating logger:
+    // - File: logs/server.log (folder 'logs' is created automatically)
+    // - Max Size: 5MB
+    // - Max Files: 3 backups
+    dtlog::logger<dtlog::rotating_file_sink> rotLog(
+        "Server", 
+        "[%T] [%L]: %V", 
+        "logs/server.log", 
+        5 * 1024 * 1024, 
+        3
+    );
+    rotLog.info("Server started.");
+    
+    // or 
+    dtlog::logger<> log("Server");
 
     // 1. Create a rotating file sink
     // Arguments: filename, max_size (in bytes), max_backup_files
@@ -72,11 +115,23 @@ int main() {
     // Now logs will go to both Console (default) and File
     log.info("This message goes to both console and the rotating log file.");
 
-    return 0;
 }
 ```
 
-### Customizing the Log Pattern
+### 4. Performance Tuning (Flush On)
+By default, many sinks might flush after every message for safety. You can optimize performance by only flushing on critical errors.
+```cpp
+dtlog::logger log("App");
+
+// Only flush to disk/console if the level is ERROR or higher.
+// INFO and DEBUG messages will remain in the buffer until the buffer fills or an ERROR occurs.
+log.flush_on(dtlog::log_level::error);
+
+log.info("Fast logging (buffered)");
+log.error("Critical error! (Flushed immediately)");
+```
+
+### 5. Customizing the Log Pattern
 
 You can customize how the log messages are formatted using `set_pattern`.
 
