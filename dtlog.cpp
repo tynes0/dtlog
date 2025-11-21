@@ -99,7 +99,8 @@ namespace dtlog
         DTLOG_UNUSED(std::fwrite(msg.c_str(), 1, msg.length(), stdout));
         DTLOG_UNUSED(std::fwrite(reset_code, 1, 4, stdout));
 #endif
-        DTLOG_UNUSED(std::fflush(stdout));
+        if (should_flush(level))
+            DTLOG_UNUSED(std::fflush(stdout));
     }
 
     void err_console_sink::log(const std::string& msg, log_level level)
@@ -118,6 +119,7 @@ namespace dtlog
         DTLOG_UNUSED(std::fwrite(msg.c_str(), 1, msg.length(), stderr));
         DTLOG_UNUSED(std::fwrite(reset_code, 1, 4, stderr));
 #endif
-        DTLOG_UNUSED(std::fflush(stderr));
+        if (should_flush(level))
+            DTLOG_UNUSED(std::fflush(stderr));
     }
 }
