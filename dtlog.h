@@ -25,72 +25,185 @@
 #include <vector>    // std::vector
 #include <filesystem>// std::filesystem
 
-#if _HAS_NODISCARD
-#define DTLOG_NODISCARD [[nodiscard]]  // @brief If _HAS_NODISCARD is defined, DTLOG_NODISCARD expands to [[nodiscard]].
-#else // _HAS_NODISCARD
-#define DTLOG_NODISCARD  // @brief Otherwise, it expands to nothing.
-#endif // _HAS_NODISCARD
-
-#define DTLOG_UNUSED(x) (void)(x)
+#define DTLOG_NODISCARD [[nodiscard]]   // I guess every modern compiler supports nodiscard attribute
+#define DTLOG_UNUSED(x) (void)(x)       // Just to suppress some warnings...
 
 namespace dtlog
 {
-    /**
-     * @brief A utility class for formatting strings.
+/**
+     * @brief A high-performance utility class for formatting strings with positional arguments support.
+     * Supports:
+     * - Automatic indexing: "{} {}"
+     * - Positional indexing: "{1} {0}"
+     * - Formatting specifiers: "{0:.2f}", "{:04X}"
      */
     class formatter
     {
-    public:
-        /**
-         * @brief Formats a string by replacing placeholders with arguments.
-         * * @tparam Args The types of the arguments to be formatted.
-         * @param fmt The format string containing '{}' placeholders.
-         * @param args The arguments to substitute into the placeholders.
-         * @return A formatted std::string.
-         */
-        template <typename... Args>
-        static std::string format(const std::string& fmt, Args&&... args)
+        struct arg_wrapper
         {
-            if (sizeof...(args) == 0)
-                return fmt;
+            const void* ptr;
+            void (*format_func)(std::ostringstream&, const void*, std::string_view);
+        };
+
+        template <typename T>
+        static void format_helper(std::ostringstream& oss, const void* ptr, std::string_view spec)
+        {
+            const T& val = *static_cast<const T*>(ptr);
             
-            std::ostringstream oss;
-            format_impl(oss, fmt, std::forward<Args>(args)...);
-            return oss.str();
+            std::ios state(nullptr);
+            state.copyfmt(oss);
+            
+            parse_and_apply_spec(oss, spec);
+            
+            oss << val;
+            
+            oss.copyfmt(state);
         }
 
-    private:
-        /**
-         * @brief Base case for the recursive format implementation.
-         * @param oss The output string stream.
-         * @param fmt The remaining format string.
-         */
-        static void format_impl(std::ostringstream& oss, const std::string& fmt)
+    public:
+        template <typename... Args>
+        static std::string format(std::string_view fmt, Args&&... args)
         {
-            oss << fmt;
-        }
-
-        /**
-         * @brief Recursive implementation to process format string and arguments.
-         * * @tparam T The type of the current argument.
-         * @tparam Args The types of the remaining arguments.
-         * @param oss The output string stream.
-         * @param fmt The format string.
-         * @param first The current argument to format.
-         * @param rest The remaining arguments.
-         */
-        template <typename T, typename... Args>
-        static void format_impl(std::ostringstream& oss, const std::string& fmt, T&& first, Args&&... rest)
-        {
-            size_t brace = fmt.find("{}");
-            if (brace != std::string::npos)
+            if constexpr (sizeof...(Args) == 0)
             {
-                oss << fmt.substr(0, brace) << std::forward<T>(first);
-                format_impl(oss, fmt.substr(brace + 2), std::forward<Args>(rest)...);
+                return std::string(fmt);
             }
             else
             {
-                oss << fmt;
+                arg_wrapper wrappers[] =
+                {
+                    { &args, format_helper<std::remove_reference_t<Args>> }... 
+                };
+                
+                size_t num_args = sizeof...(Args);
+    
+                std::ostringstream oss;
+                size_t arg_counter = 0;
+                size_t pos = 0;
+    
+                while (pos < fmt.size())
+                {
+                    if (fmt[pos] == '{')
+                    {
+                        if (pos + 1 < fmt.size() && fmt[pos + 1] == '{')
+                        {
+                            oss << '{'; pos += 2; continue;
+                        }
+    
+                        size_t end_brace = fmt.find('}', pos);
+                        if (end_brace == std::string_view::npos)
+                        {
+                            oss << fmt.substr(pos);
+                            break;
+                        }
+    
+                        std::string_view content = fmt.substr(pos + 1, end_brace - pos - 1);
+                        
+                        size_t index = 0;
+                        bool explicit_index = false;
+                        size_t spec_start = 0;
+    
+                        if (!content.empty() && std::isdigit(content[0]))
+                        {
+                            size_t k = 0;
+                            size_t idx_val = 0;
+                            while (k < content.size() && std::isdigit(content[k]))
+                            {
+                                idx_val = idx_val * 10 + (content[k] - '0');
+                                k++;
+                            }
+                            
+                            if (k == content.size() || content[k] == ':')
+                            {
+                                index = idx_val;
+                                explicit_index = true;
+                                spec_start = k;
+                            }
+                        }
+    
+                        if (!explicit_index)
+                            index = arg_counter++;
+    
+                        std::string_view spec;
+                        if (spec_start < content.size() && content[spec_start] == ':')
+                            spec = content.substr(spec_start + 1);
+    
+                        if (index < num_args)
+                            wrappers[index].format_func(oss, wrappers[index].ptr, spec);
+                        
+                        pos = end_brace + 1;
+                    }
+                    else if (fmt[pos] == '}')
+                    {
+                        if (pos + 1 < fmt.size() && fmt[pos + 1] == '}')
+                        {
+                            oss << '}'; pos += 2;
+                            continue;
+                        }
+                        
+                        oss << '}'; pos++;
+                    }
+                    else
+                    {
+                        oss << fmt[pos]; pos++;
+                    }
+                }
+                return oss.str();
+            }
+        }
+
+    private:
+        static void parse_and_apply_spec(std::ostringstream& oss, std::string_view spec)
+        {
+            if (spec.empty())
+                return;
+
+            size_t i = 0;
+
+            if (i < spec.size() && spec[i] == '0')
+            {
+                oss << std::setfill('0');
+                i++;
+            }
+            
+            if (i < spec.size() && std::isdigit(spec[i]))
+            {
+                int width = 0;
+                while (i < spec.size() && std::isdigit(spec[i]))
+                {
+                    width = width * 10 + (spec[i] - '0');
+                    i++;
+                }
+                oss << std::setw(width);
+            }
+
+            if (i < spec.size() && spec[i] == '.')
+            {
+                i++;
+                int prec = 0;
+                while (i < spec.size() && std::isdigit(spec[i]))
+                {
+                    prec = prec * 10 + (spec[i] - '0');
+                    i++;
+                }
+                oss << std::fixed << std::setprecision(prec);
+            }
+
+            for (; i < spec.size(); ++i)
+            {
+                switch (spec[i])
+                {
+                    case 'x': oss << std::hex; break;
+                    case 'X': oss << std::uppercase << std::hex; break;
+                    case 'd': oss << std::dec; break;
+                    case 'o': oss << std::oct; break;
+                    case 'f': oss << std::fixed; break;
+                    case 'e': oss << std::scientific; break;
+                    case 'b': oss << std::boolalpha; break;
+                    case 'u':
+                    case 'U': oss << std::uppercase; break;
+                    default: break;
+                }
             }
         }
     };
@@ -413,14 +526,32 @@ namespace dtlog
         virtual ~isink() = default;
 
         /**
+         * @brief Sets the minimum log level required to trigger an immediate flush.
+         * @param level The log level threshold.
+         */
+        void flush_on(log_level level)
+        {
+            m_flush_level = level;
+        }
+        
+        /**
          * @brief Logs a formatted message.
          * @param final_message The fully formatted log message to be written.
          * @param level The severity level of the log message.
          */
         virtual void log(const std::string& final_message, log_level level) = 0;
-        
+
     protected:
+        /**
+         * @brief Checks if the buffer should be flushed based on the current message level.
+         */
+        bool should_flush(log_level level) const
+        {
+            return level >= m_flush_level;
+        }
+        
         std::mutex m_mutex; ///< Mutex for thread safety.
+        log_level m_flush_level = log_level::trace; // Default: trace
     };
 
     /**
@@ -490,6 +621,11 @@ namespace dtlog
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             m_file << msg;
+            
+            if (should_flush(level))
+            {
+                m_file.flush();
+            }
         }
 
     private:
@@ -508,8 +644,8 @@ namespace dtlog
          * @param max_size The maximum size of a log file in bytes before rotation.
          * @param max_files The maximum number of backup files to keep.
          */
-        rotating_file_sink(const std::string& base_filename, size_t max_size, size_t max_files)
-            : m_base_filename(base_filename), m_max_size(max_size), m_max_files(max_files)
+        rotating_file_sink(std::string base_filename, size_t max_size, size_t max_files)
+            : m_base_filename(std::move(base_filename)), m_max_size(max_size), m_max_files(max_files)
         {
             open_file();
         }
@@ -540,7 +676,7 @@ namespace dtlog
             m_file << msg;
             m_current_size += msg.size();
             
-            if (level == log_level::critical || level == log_level::error)
+            if (should_flush(level))
             {
                 m_file.flush();
             }
@@ -620,21 +756,32 @@ namespace dtlog
 
     /**
      * @brief A class for logging messages with various log levels and formatting options.
+     * @tparam DefaultSink The type of the sink to be added by default (default: console_sink).
      */
+    template <typename DefaultSink = console_sink, std::enable_if_t<std::is_base_of_v<isink, DefaultSink>>* = nullptr>
     class logger
     {
     public:
         /**
          * @brief Constructor for the logger.
-         * @param log_name The name of the logger (default: "dtlog").
-         * @param pattern The log message pattern (default: "[%R] %N: %V").
+         * Allows forwarding arguments to the DefaultSink constructor.
+         * * @tparam SinkArgs Types of arguments for the DefaultSink constructor.
+         * @param name The name of the logger.
+         * @param pattern The log message pattern.
+         * @param args Arguments to be passed to the DefaultSink constructor.
          */
-        logger(std::string log_name = "dtlog", std::string pattern = "[%R] %N: %V%n")
-            : log_name(std::move(log_name)), log_pattern(std::move(pattern))
+        template <typename... SinkArgs>
+        explicit logger(std::string name, std::string pattern = "[%R] %N: %V%n", SinkArgs&&... args)
+            : log_name(std::move(name)), log_pattern(std::move(pattern))
         {
-            m_sinks.push_back(std::make_shared<console_sink>());
+            m_sinks.push_back(std::make_shared<DefaultSink>(std::forward<SinkArgs>(args)...));
         }
-
+        
+        explicit logger(std::string name) 
+            : log_name(std::move(name)), log_pattern("[%R] %N: %V%n")
+        {
+            m_sinks.push_back(std::make_shared<DefaultSink>());
+        }
         logger(const logger&) = default;
         logger& operator=(const logger&) = default;
         logger(logger&&) = default;
@@ -709,6 +856,18 @@ namespace dtlog
         std::string get_pattern() const
         {
             return log_pattern;
+        }
+
+        /**
+         * @brief Sets the minimum log level required to trigger an immediate flush on all sinks.
+         * @param level The log level threshold.
+         */
+        void flush_on(log_level level) const
+        {
+            for(auto& sink : m_sinks)
+            {
+                sink->flush_on(level);
+            }
         }
         
         /**
